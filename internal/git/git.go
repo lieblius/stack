@@ -18,14 +18,6 @@ func Run(args ...string) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-func MustRun(args ...string) string {
-	out, err := Run(args...)
-	if err != nil {
-		panic(err)
-	}
-	return out
-}
-
 func CurrentBranch() (string, error) {
 	return Run("rev-parse", "--abbrev-ref", "HEAD")
 }
@@ -79,6 +71,24 @@ func RevList(rangeSpec string) ([]string, error) {
 }
 
 func RemoteBranchExists(remote, branch string) bool {
-	_, err := Run("ls-remote", "--heads", remote, "refs/heads/"+branch)
-	return err == nil
+	out, err := Run("ls-remote", "--heads", remote, "refs/heads/"+branch)
+	return err == nil && out != ""
+}
+
+func FirstCommitSubject(rangeSpec string) string {
+	out, err := Run("log", "--format=%s", "-1", rangeSpec)
+	if err != nil {
+		return ""
+	}
+	return out
+}
+
+func DeleteRemoteBranch(remote, branch string) error {
+	_, err := Run("push", remote, "--delete", branch)
+	return err
+}
+
+func DeleteLocalBranch(branch string) error {
+	_, err := Run("branch", "-D", branch)
+	return err
 }

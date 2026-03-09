@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -15,6 +16,14 @@ type PRInfo struct {
 	HeadRefName string `json:"headRefName"`
 	BaseRefName string `json:"baseRefName"`
 	URL         string `json:"url"`
+}
+
+func EnsureInstalled() error {
+	_, err := exec.LookPath("gh")
+	if err != nil {
+		return fmt.Errorf("gh CLI not found in PATH; install from https://cli.github.com")
+	}
+	return nil
 }
 
 func PRForBranch(branch string) (*PRInfo, error) {
@@ -48,10 +57,10 @@ func EditPRBase(prNumber int, newBase string) error {
 	return nil
 }
 
-func CreatePR(head, base, title string) (*PRInfo, error) {
+func CreatePR(head, base, title, body string) (*PRInfo, error) {
 	cmd := exec.Command("gh", "pr", "create",
 		"--head", head, "--base", base,
-		"--title", title, "--body", "")
+		"--title", title, "--body", body)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -62,16 +71,19 @@ func CreatePR(head, base, title string) (*PRInfo, error) {
 	return PRForBranch(head)
 }
 
-func MergePR(prNumber int, squash bool) error {
+func MergePR(prNumber int, strategy string) error {
 	args := []string{"pr", "merge", fmt.Sprintf("%d", prNumber)}
-	if squash {
+	switch strategy {
+	case "squash":
 		args = append(args, "--squash")
+	case "merge":
+		args = append(args, "--merge")
+	case "rebase":
+		args = append(args, "--rebase")
 	}
 	cmd := exec.Command("gh", args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("gh pr merge %d: %s", prNumber, strings.TrimSpace(stderr.String()))
-	}
-	return nil
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
 }

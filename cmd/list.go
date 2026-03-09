@@ -69,7 +69,11 @@ func printChildren(parent string, all []meta.BranchMeta, current string, depth i
 		}
 
 		prInfo := ""
-		if pr, err := gh.PRForBranch(child); err == nil && pr != nil {
+		pr, err := gh.PRForBranch(child)
+		if err != nil {
+			fmt.Printf("    warning: could not fetch PR for %s: %v\n", child, err)
+		}
+		if pr != nil {
 			stateStr := formatPRState(pr.State)
 			prInfo = fmt.Sprintf("  PR #%d %s", pr.Number, stateStr)
 		}

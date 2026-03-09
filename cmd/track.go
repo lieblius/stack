@@ -24,10 +24,14 @@ Example:
 	RunE: runTrack,
 }
 
-var trackTrunk string
+var (
+	trackTrunk string
+	trackForce bool
+)
 
 func init() {
 	trackCmd.Flags().StringVar(&trackTrunk, "trunk", "main", "trunk branch name")
+	trackCmd.Flags().BoolVar(&trackForce, "force", false, "overwrite existing tracking metadata")
 }
 
 // parseBranchArg parses "branch" or "branch:sha" syntax.
@@ -48,6 +52,15 @@ func runTrack(cmd *cobra.Command, args []string) error {
 		branch, base := parseBranchArg(arg)
 		if !git.BranchExists(branch) {
 			return fmt.Errorf("branch %q does not exist locally", branch)
+		}
+		if !trackForce {
+			existing, err := meta.Get(branch)
+			if err != nil {
+				return err
+			}
+			if existing != nil {
+				return fmt.Errorf("branch %s already tracked (parent: %s). Use --force to overwrite", branch, existing.Parent)
+			}
 		}
 		entries = append(entries, entry{branch, base})
 	}

@@ -18,4 +18,7 @@ func init() {
 	rootCmd.AddCommand(trackCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(syncCmd)
+	rootCmd.AddCommand(submitCmd)
+	rootCmd.AddCommand(rebaseCmd)
+	rootCmd.AddCommand(mergeCmd)
 }
