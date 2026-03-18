@@ -16,6 +16,7 @@ type PRInfo struct {
 	HeadRefName string `json:"headRefName"`
 	BaseRefName string `json:"baseRefName"`
 	URL         string `json:"url"`
+	Body        string `json:"body"`
 }
 
 func EnsureInstalled() error {
@@ -28,7 +29,7 @@ func EnsureInstalled() error {
 
 func PRForBranch(branch string) (*PRInfo, error) {
 	cmd := exec.Command("gh", "pr", "view", branch,
-		"--json", "number,title,state,headRefName,baseRefName,url")
+		"--json", "number,title,state,headRefName,baseRefName,url,body")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -71,19 +72,68 @@ func CreatePR(head, base, title, body string) (*PRInfo, error) {
 	return PRForBranch(head)
 }
 
-func MergePR(prNumber int, strategy string) error {
-	args := []string{"pr", "merge", fmt.Sprintf("%d", prNumber)}
-	switch strategy {
-	case "squash":
-		args = append(args, "--squash")
-	case "merge":
-		args = append(args, "--merge")
-	case "rebase":
-		args = append(args, "--rebase")
+func EditPRBody(prNumber int, body string) error {
+	tmpFile, err := os.CreateTemp("", "st-pr-body-*")
+	if err != nil {
+		return fmt.Errorf("creating temp file: %w", err)
 	}
-	cmd := exec.Command("gh", args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(body); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("writing temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	cmd := exec.Command("gh", "pr", "edit", fmt.Sprintf("%d", prNumber),
+		"--body-file", tmpFile.Name())
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("gh pr edit %d body: %s", prNumber, strings.TrimSpace(stderr.String()))
+	}
+	return nil
+}
+
+func MergePR(prNumber int, strategy string, interactive bool) error {
+	if interactive {
+		args := []string{"pr", "merge", fmt.Sprintf("%d", prNumber)}
+		switch strategy {
+		case "squash":
+			args = append(args, "--squash")
+		case "merge":
+			args = append(args, "--merge")
+		case "rebase":
+			args = append(args, "--rebase")
+		}
+		cmd := exec.Command("gh", args...)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// Non-interactive: use GitHub REST API directly
+	method := "squash"
+	switch strategy {
+	case "merge":
+		method = "merge"
+	case "rebase":
+		method = "rebase"
+	}
+
+	cmd := exec.Command("gh", "api", "--method", "PUT",
+		fmt.Sprintf("repos/{owner}/{repo}/pulls/%d/merge", prNumber),
+		"-f", "merge_method="+method)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		errMsg := strings.TrimSpace(stderr.String())
+		if errMsg == "" {
+			errMsg = strings.TrimSpace(stdout.String())
+		}
+		return fmt.Errorf("merging PR #%d: %s", prNumber, errMsg)
+	}
+	return nil
 }

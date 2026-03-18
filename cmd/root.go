@@ -21,4 +21,12 @@ func init() {
 	rootCmd.AddCommand(submitCmd)
 	rootCmd.AddCommand(rebaseCmd)
 	rootCmd.AddCommand(mergeCmd)
+	rootCmd.AddCommand(createCmd)
+	rootCmd.AddCommand(upCmd)
+	rootCmd.AddCommand(downCmd)
+	rootCmd.AddCommand(topCmd)
+	rootCmd.AddCommand(bottomCmd)
+	rootCmd.AddCommand(deleteCmd)
+	rootCmd.AddCommand(untrackCmd)
+	rootCmd.AddCommand(continueCmd)
 }
