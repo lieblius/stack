@@ -106,7 +106,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	// Rebase alive branches
-	result, err := rebaseTrackedBranches(alive, syncRemote, syncDryRun)
+	result, err := rebaseTrackedBranches(alive, syncRemote, syncDryRun, host)
 	if err != nil {
 		if isConflictError(err) {
 			conflicted = true

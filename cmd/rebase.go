@@ -63,7 +63,7 @@ func runRebase(cmd *cobra.Command, args []string) error {
 		restoreCheckout(origBranch, rebaseDryRun)
 	}()
 
-	result, err := rebaseTrackedBranches(all, rebaseRemote, rebaseDryRun)
+	result, err := rebaseTrackedBranches(all, rebaseRemote, rebaseDryRun, host)
 	if err != nil {
 		if isConflictError(err) {
 			conflicted = true

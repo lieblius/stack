@@ -249,7 +249,7 @@ func mergeOne() (bool, error) {
 	}
 
 	if len(alive) > 0 {
-		result, err := rebaseTrackedBranches(alive, mergeRemote, mergeDryRun)
+		result, err := rebaseTrackedBranches(alive, mergeRemote, mergeDryRun, host)
 		if err != nil {
 			if isConflictError(err) {
 				conflicted = true
