@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/liebl/stack/internal/gh"
 	"github.com/liebl/stack/internal/git"
 	"github.com/liebl/stack/internal/meta"
 )
@@ -122,15 +121,17 @@ func rebaseTrackedBranches(alive []meta.BranchMeta, remote string, dryRun bool) 
 		}
 		meta.ClearContinueState()
 
-		// Update PR base if needed (read op is best-effort)
-		pr, err := gh.PRForBranch(m.Name)
-		if err != nil {
-			fmt.Printf("  warning: could not fetch PR for %s: %v\n", m.Name, err)
-		}
-		if pr != nil && pr.BaseRefName != m.Parent {
-			fmt.Printf("  updating PR #%d base: %s -> %s\n", pr.Number, pr.BaseRefName, m.Parent)
-			if err := gh.EditPRBase(pr.Number, m.Parent); err != nil {
-				return result, fmt.Errorf("updating PR base for %s: %w", m.Name, err)
+		// Update PR base if needed (best-effort; provider may not be available)
+		if host != nil {
+			pr, err := host.PRForBranch(m.Name)
+			if err != nil {
+				fmt.Printf("  warning: could not fetch PR for %s: %v\n", m.Name, err)
+			}
+			if pr != nil && pr.Base != m.Parent {
+				fmt.Printf("  updating PR #%d base: %s -> %s\n", pr.Number, pr.Base, m.Parent)
+				if err := host.EditPRBase(pr.Number, m.Parent); err != nil {
+					return result, fmt.Errorf("updating PR base for %s: %w", m.Name, err)
+				}
 			}
 		}
 

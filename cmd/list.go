@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/liebl/stack/internal/gh"
 	"github.com/liebl/stack/internal/git"
 	"github.com/liebl/stack/internal/meta"
+	"github.com/liebl/stack/internal/provider"
 	"github.com/spf13/cobra"
 )
 
@@ -27,6 +27,8 @@ var (
 )
 
 func runList(cmd *cobra.Command, args []string) error {
+	_ = requireProvider() // best-effort; list works without a provider
+
 	all, err := meta.AllTracked()
 	if err != nil {
 		return err
@@ -69,13 +71,15 @@ func printChildren(parent string, all []meta.BranchMeta, current string, depth i
 		}
 
 		prInfo := ""
-		pr, err := gh.PRForBranch(child)
-		if err != nil {
-			fmt.Printf("    warning: could not fetch PR for %s: %v\n", child, err)
-		}
-		if pr != nil {
-			stateStr := formatPRState(pr.State)
-			prInfo = fmt.Sprintf("  PR #%d %s", pr.Number, stateStr)
+		if host != nil {
+			pr, err := host.PRForBranch(child)
+			if err != nil {
+				fmt.Printf("    warning: could not fetch PR for %s: %v\n", child, err)
+			}
+			if pr != nil {
+				stateStr := formatPRState(pr.State)
+				prInfo = fmt.Sprintf("  PR #%d %s", pr.Number, stateStr)
+			}
 		}
 
 		commits, _ := git.RevList(parent + ".." + child)
@@ -89,15 +93,15 @@ func printChildren(parent string, all []meta.BranchMeta, current string, depth i
 	}
 }
 
-func formatPRState(state string) string {
+func formatPRState(state provider.PRState) string {
 	switch state {
-	case "MERGED":
+	case provider.PRMerged:
 		return mergedStyle.Render("[MERGED]")
-	case "OPEN":
+	case provider.PROpen:
 		return openStyle.Render("[OPEN]")
-	case "CLOSED":
+	case provider.PRClosed:
 		return dimStyle.Render("[CLOSED]")
 	default:
-		return dimStyle.Render("[" + state + "]")
+		return dimStyle.Render("[" + string(state) + "]")
 	}
 }

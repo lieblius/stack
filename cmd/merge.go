@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/liebl/stack/internal/gh"
 	"github.com/liebl/stack/internal/git"
 	"github.com/liebl/stack/internal/meta"
+	"github.com/liebl/stack/internal/provider"
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +38,7 @@ func init() {
 }
 
 func runMerge(cmd *cobra.Command, args []string) error {
-	if err := gh.EnsureInstalled(); err != nil {
+	if err := requireProvider(); err != nil {
 		return err
 	}
 
@@ -63,8 +63,8 @@ func runMerge(cmd *cobra.Command, args []string) error {
 		// List all open PRs in topo order for upfront confirmation
 		var targets []string
 		for _, m := range all {
-			pr, _ := gh.PRForBranch(m.Name)
-			if pr != nil && pr.State == "OPEN" {
+			pr, _ := host.PRForBranch(m.Name)
+			if pr != nil && pr.State == provider.PROpen {
 				targets = append(targets, fmt.Sprintf("  PR #%d (%s)", pr.Number, m.Name))
 			}
 		}
@@ -120,13 +120,13 @@ func mergeOne() (bool, error) {
 
 	// Find bottom open PR: first in topo order whose parent is trunk
 	var target meta.BranchMeta
-	var targetPR *gh.PRInfo
+	var targetPR *provider.PullRequest
 	for _, m := range all {
 		if m.Parent != mergeTrunk {
 			continue
 		}
-		pr, _ := gh.PRForBranch(m.Name)
-		if pr != nil && pr.State == "OPEN" {
+		pr, _ := host.PRForBranch(m.Name)
+		if pr != nil && pr.State == provider.PROpen {
 			target = m
 			targetPR = pr
 			break
@@ -175,11 +175,11 @@ func mergeOne() (bool, error) {
 	// Repoint children FIRST (key invariant: never delete a branch that is the base of another open PR)
 	children := meta.Children(target.Name, all)
 	for _, child := range children {
-		childPR, _ := gh.PRForBranch(child)
-		if childPR != nil && childPR.State == "OPEN" {
+		childPR, _ := host.PRForBranch(child)
+		if childPR != nil && childPR.State == provider.PROpen {
 			fmt.Printf("  repointing PR #%d (%s) base: %s -> %s\n", childPR.Number, child, target.Name, mergeTrunk)
 			if !mergeDryRun {
-				if err := gh.EditPRBase(childPR.Number, mergeTrunk); err != nil {
+				if err := host.EditPRBase(childPR.Number, mergeTrunk); err != nil {
 					return false, fmt.Errorf("repointing PR for %s: %w", child, err)
 				}
 			}
@@ -195,7 +195,7 @@ func mergeOne() (bool, error) {
 	// Merge
 	fmt.Printf("\nMerging PR #%d (%s) via squash...\n", targetPR.Number, target.Name)
 	if !mergeDryRun {
-		if err := gh.MergePR(targetPR.Number, mergeStrategy, !mergeCI); err != nil {
+		if err := host.MergePR(targetPR.Number, mergeStrategy, !mergeCI); err != nil {
 			return false, fmt.Errorf("merging PR #%d: %w", targetPR.Number, err)
 		}
 	}

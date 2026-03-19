@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/liebl/stack/internal/gh"
 	"github.com/liebl/stack/internal/git"
 	"github.com/liebl/stack/internal/meta"
+	"github.com/liebl/stack/internal/provider"
 	"github.com/spf13/cobra"
 )
 
@@ -30,6 +30,10 @@ func init() {
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
+	if err := requireProvider(); err != nil {
+		return err
+	}
+
 	if err := recoverFromContinue(); err != nil {
 		return err
 	}
@@ -67,11 +71,11 @@ func runSync(cmd *cobra.Command, args []string) error {
 	var merged []meta.BranchMeta
 	var alive []meta.BranchMeta
 	for _, m := range all {
-		pr, err := gh.PRForBranch(m.Name)
+		pr, err := host.PRForBranch(m.Name)
 		if err != nil {
 			fmt.Printf("  warning: could not fetch PR for %s: %v\n", m.Name, err)
 		}
-		if pr != nil && pr.State == "MERGED" {
+		if pr != nil && pr.State == provider.PRMerged {
 			merged = append(merged, m)
 			fmt.Printf("  %s: merged (PR #%d)\n", m.Name, pr.Number)
 		} else {

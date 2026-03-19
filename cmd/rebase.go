@@ -28,6 +28,8 @@ func init() {
 }
 
 func runRebase(cmd *cobra.Command, args []string) error {
+	_ = requireProvider() // best-effort; rebase works without a provider
+
 	if err := recoverFromContinue(); err != nil {
 		return err
 	}

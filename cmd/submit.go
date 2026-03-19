@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/liebl/stack/internal/gh"
 	"github.com/liebl/stack/internal/git"
 	"github.com/liebl/stack/internal/meta"
+	"github.com/liebl/stack/internal/provider"
 	"github.com/spf13/cobra"
 )
 
@@ -31,11 +31,11 @@ func init() {
 
 type prEntry struct {
 	branch string
-	pr     *gh.PRInfo
+	pr     *provider.PullRequest
 }
 
 func runSubmit(cmd *cobra.Command, args []string) error {
-	if err := gh.EnsureInstalled(); err != nil {
+	if err := requireProvider(); err != nil {
 		return err
 	}
 
@@ -73,7 +73,7 @@ func runSubmit(cmd *cobra.Command, args []string) error {
 		}
 
 		// Check existing PR
-		pr, err := gh.PRForBranch(m.Name)
+		pr, err := host.PRForBranch(m.Name)
 		if err != nil {
 			fmt.Printf("  %s: warning: could not check PR: %v\n", m.Name, err)
 		}
@@ -86,18 +86,18 @@ func runSubmit(cmd *cobra.Command, args []string) error {
 			}
 			fmt.Printf("  %s: creating PR (base: %s, title: %q)...\n", m.Name, m.Parent, title)
 			if !submitDryRun {
-				newPR, err := gh.CreatePR(m.Name, m.Parent, title, "")
+				newPR, err := host.CreatePR(m.Name, m.Parent, title, "")
 				if err != nil {
 					return fmt.Errorf("creating PR for %s: %w", m.Name, err)
 				}
 				fmt.Printf("  %s: created PR #%d (%s)\n", m.Name, newPR.Number, newPR.URL)
 				pr = newPR
 			}
-		} else if pr.BaseRefName != m.Parent {
+		} else if pr.Base != m.Parent {
 			// PR exists but wrong base
-			fmt.Printf("  %s: updating PR #%d base: %s -> %s\n", m.Name, pr.Number, pr.BaseRefName, m.Parent)
+			fmt.Printf("  %s: updating PR #%d base: %s -> %s\n", m.Name, pr.Number, pr.Base, m.Parent)
 			if !submitDryRun {
-				if err := gh.EditPRBase(pr.Number, m.Parent); err != nil {
+				if err := host.EditPRBase(pr.Number, m.Parent); err != nil {
 					return fmt.Errorf("updating PR base for %s: %w", m.Name, err)
 				}
 			}
@@ -117,7 +117,7 @@ func runSubmit(cmd *cobra.Command, args []string) error {
 			nav := buildStackNav(entries, e.branch)
 			newBody := spliceStackNav(e.pr.Body, nav)
 			if newBody != e.pr.Body {
-				if err := gh.EditPRBody(e.pr.Number, newBody); err != nil {
+				if err := host.EditPRBody(e.pr.Number, newBody); err != nil {
 					fmt.Printf("  warning: could not update nav for PR #%d: %v\n", e.pr.Number, err)
 				}
 			}
