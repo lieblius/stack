@@ -1,6 +1,5 @@
 package provider
 
-// PRState represents the normalized state of a pull request across providers.
 type PRState string
 
 const (
@@ -9,7 +8,14 @@ const (
 	PRClosed PRState = "closed"
 )
 
-// PullRequest holds provider-agnostic metadata for a pull request.
+type MergeStrategy string
+
+const (
+	MergeSquash MergeStrategy = "squash"
+	MergeMerge  MergeStrategy = "merge"
+	MergeRebase MergeStrategy = "rebase"
+)
+
 type PullRequest struct {
 	Number int
 	Title  string
@@ -18,4 +24,12 @@ type PullRequest struct {
 	Base   string // target branch name
 	URL    string
 	Body   string
+}
+
+type Host interface {
+	PRForBranch(branch string) (*PullRequest, error)
+	CreatePR(head, base, title, body string) (*PullRequest, error)
+	EditPRBase(number int, newBase string) error
+	EditPRBody(number int, body string) error
+	MergePR(number int, strategy MergeStrategy) error
 }

@@ -2,7 +2,7 @@ package cmd
 
 import "github.com/liebl/stack/internal/provider"
 
-var host *provider.GitHub
+var host provider.Host
 
 func requireProvider() error {
 	if host != nil {

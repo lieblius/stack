@@ -120,35 +120,10 @@ func (g *GitHub) EditPRBody(number int, body string) error {
 	return nil
 }
 
-func (g *GitHub) MergePR(number int, strategy string, interactive bool) error {
-	if interactive {
-		args := []string{"pr", "merge", fmt.Sprintf("%d", number)}
-		switch strategy {
-		case "squash":
-			args = append(args, "--squash")
-		case "merge":
-			args = append(args, "--merge")
-		case "rebase":
-			args = append(args, "--rebase")
-		}
-		cmd := exec.Command("gh", args...)
-		cmd.Stdin = os.Stdin
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		return cmd.Run()
-	}
-
-	method := "squash"
-	switch strategy {
-	case "merge":
-		method = "merge"
-	case "rebase":
-		method = "rebase"
-	}
-
+func (g *GitHub) MergePR(number int, strategy MergeStrategy) error {
 	cmd := exec.Command("gh", "api", "--method", "PUT",
 		fmt.Sprintf("repos/{owner}/{repo}/pulls/%d/merge", number),
-		"-f", "merge_method="+method)
+		"-f", "merge_method="+string(strategy))
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

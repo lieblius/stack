@@ -33,11 +33,18 @@ func init() {
 	mergeCmd.Flags().BoolVar(&mergeDryRun, "dry-run", false, "show what would happen without doing it")
 	mergeCmd.Flags().BoolVar(&mergeYes, "yes", false, "skip confirmation prompt")
 	mergeCmd.Flags().BoolVar(&mergeAll, "all", false, "merge all PRs in the stack one by one")
-	mergeCmd.Flags().BoolVar(&mergeCI, "ci", false, "non-interactive mode (uses GitHub API directly)")
+	mergeCmd.Flags().BoolVar(&mergeCI, "ci", false, "skip confirmation prompts (same as --yes)")
 	mergeCmd.Flags().StringVar(&mergeStrategy, "strategy", "squash", "merge strategy: squash, merge, rebase")
 }
 
 func runMerge(cmd *cobra.Command, args []string) error {
+	strategy := provider.MergeStrategy(mergeStrategy)
+	switch strategy {
+	case provider.MergeSquash, provider.MergeMerge, provider.MergeRebase:
+	default:
+		return fmt.Errorf("unknown merge strategy: %q (valid: squash, merge, rebase)", mergeStrategy)
+	}
+
 	if err := requireProvider(); err != nil {
 		return err
 	}
@@ -195,7 +202,7 @@ func mergeOne() (bool, error) {
 	// Merge
 	fmt.Printf("\nMerging PR #%d (%s) via squash...\n", targetPR.Number, target.Name)
 	if !mergeDryRun {
-		if err := host.MergePR(targetPR.Number, mergeStrategy, !mergeCI); err != nil {
+		if err := host.MergePR(targetPR.Number, provider.MergeStrategy(mergeStrategy)); err != nil {
 			return false, fmt.Errorf("merging PR #%d: %w", targetPR.Number, err)
 		}
 	}
