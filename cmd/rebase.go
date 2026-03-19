@@ -28,7 +28,9 @@ func init() {
 }
 
 func runRebase(cmd *cobra.Command, args []string) error {
-	_ = requireProvider() // best-effort; rebase works without a provider
+	if err := requireProvider(); err != nil {
+		fmt.Printf("warning: %v (PR bases will not be updated)\n", err)
+	}
 
 	if err := recoverFromContinue(); err != nil {
 		return err

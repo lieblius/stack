@@ -27,7 +27,9 @@ var (
 )
 
 func runList(cmd *cobra.Command, args []string) error {
-	_ = requireProvider() // best-effort; list works without a provider
+	if err := requireProvider(); err != nil {
+		fmt.Printf("warning: %v (PR info will not be shown)\n", err)
+	}
 
 	all, err := meta.AllTracked()
 	if err != nil {
