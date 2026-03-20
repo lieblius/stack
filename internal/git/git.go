@@ -84,6 +84,9 @@ func FirstCommitSubject(rangeSpec string) string {
 }
 
 func DeleteRemoteBranch(remote, branch string) error {
+	if !RemoteBranchExists(remote, branch) {
+		return nil
+	}
 	_, err := Run("push", remote, "--delete", branch)
 	return err
 }
