@@ -1,10 +1,10 @@
-# st -- stacked pull requests for GitHub
+# st -- stacked pull requests
 
-A CLI for managing stacked PRs with squash merge support. Create chains of dependent branches, submit them as PRs, and merge them one by one -- the tool handles rebasing, repointing PR bases, and cleanup automatically.
+A CLI for managing stacked PRs with squash merge support. Works with GitHub and Forgejo. Create chains of dependent branches, submit them as PRs, and merge them one by one -- the tool handles rebasing, repointing PR bases, and cleanup automatically.
 
 ## Why
 
-GitHub's squash merge rewrites commit history. When you merge a parent PR with squash, every child branch breaks because the fork point no longer exists. Existing tools handle this by detecting merged branches after the fact. `st` goes further -- it can merge PRs directly from the CLI and immediately rebase the rest of the stack.
+Squash merge rewrites commit history. When you merge a parent PR with squash, every child branch breaks because the fork point no longer exists. Existing tools handle this by detecting merged branches after the fact. `st` goes further -- it can merge PRs directly from the CLI and immediately rebase the rest of the stack.
 
 ## Install
 
@@ -20,7 +20,13 @@ cd stack
 go build -o st .
 ```
 
-Requires `gh` CLI (https://cli.github.com) for GitHub operations.
+### GitHub
+
+Requires the `gh` CLI (https://cli.github.com). Auth is handled by `gh auth login`.
+
+### Forgejo
+
+Set the `FORGEJO_TOKEN` environment variable to a Forgejo API token with repo permissions. The provider is auto-detected from the git remote URL.
 
 ## Quick start
 
@@ -79,7 +85,7 @@ st merge --all
 | `st merge` | Merge the bottom PR, repoint children, rebase the rest, cleanup |
 | `st merge --all` | Merge every PR in the stack, bottom to top |
 | `st merge --strategy rebase` | Use a different merge strategy (default: squash) |
-| `st merge --ci` | Non-interactive merge via GitHub API (for automation) |
+| `st merge --ci` | Skip confirmation prompts (same as `--yes`) |
 
 ### Cleanup
 
@@ -105,7 +111,7 @@ The `parent` field records which branch this one is stacked on. The `base` field
 When you run `st merge`:
 
 1. Children of the target branch are repointed to trunk (so no PR is left targeting a deleted branch)
-2. The PR is merged via GitHub
+2. The PR is merged via the hosting provider's API
 3. Trunk is pulled locally
 4. The remaining stack is rebased onto the new trunk tip
 5. All branches are force-pushed
