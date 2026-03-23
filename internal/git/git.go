@@ -83,6 +83,10 @@ func FirstCommitSubject(rangeSpec string) string {
 	return out
 }
 
+func RemoteURL(remote string) (string, error) {
+	return Run("remote", "get-url", remote)
+}
+
 func DeleteRemoteBranch(remote, branch string) error {
 	if !RemoteBranchExists(remote, branch) {
 		return nil
