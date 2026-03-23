@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"time"
 
 	forgejo "codeberg.org/mvdkleijn/forgejo-sdk/forgejo/v2"
 )
@@ -119,14 +120,21 @@ func (f *Forgejo) MergePR(number int, strategy MergeStrategy) error {
 		style = forgejo.MergeStyleSquash
 	}
 
-	ok, _, err := f.client.MergePullRequest(f.owner, f.repo, int64(number), forgejo.MergePullRequestOption{
-		Style: style,
-	})
-	if err != nil {
-		return fmt.Errorf("merging PR #%d: %w", number, err)
+	// Forgejo may not be ready to merge immediately after a rebase.
+	// Retry briefly to allow the merge state to settle.
+	for attempt := range 3 {
+		ok, _, err := f.client.MergePullRequest(f.owner, f.repo, int64(number), forgejo.MergePullRequestOption{
+			Style: style,
+		})
+		if err != nil {
+			return fmt.Errorf("merging PR #%d: %w", number, err)
+		}
+		if ok {
+			return nil
+		}
+		if attempt < 2 {
+			time.Sleep(2 * time.Second)
+		}
 	}
-	if !ok {
-		return fmt.Errorf("merging PR #%d: merge was not successful", number)
-	}
-	return nil
+	return fmt.Errorf("merging PR #%d: merge was not successful after retries", number)
 }
