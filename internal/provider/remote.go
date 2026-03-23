@@ -8,9 +8,10 @@ import (
 
 // RemoteInfo holds the parsed components of a git remote URL.
 type RemoteInfo struct {
-	Host  string // e.g. "github.com", "forgejo.example.com"
-	Owner string
-	Repo  string
+	Host    string // e.g. "github.com", "localhost:3333"
+	BaseURL string // e.g. "https://github.com", "http://localhost:3333"
+	Owner   string
+	Repo    string
 }
 
 // ParseRemoteURL extracts host, owner, and repo from a git remote URL.
@@ -31,7 +32,12 @@ func ParseRemoteURL(rawURL string) (*RemoteInfo, error) {
 		if len(ownerRepo) != 2 {
 			return nil, fmt.Errorf("cannot parse owner/repo from SSH remote: %s", rawURL)
 		}
-		return &RemoteInfo{Host: hostPart, Owner: ownerRepo[0], Repo: ownerRepo[1]}, nil
+		return &RemoteInfo{
+			Host:    hostPart,
+			BaseURL: "https://" + hostPart,
+			Owner:   ownerRepo[0],
+			Repo:    ownerRepo[1],
+		}, nil
 	}
 
 	// HTTPS format
@@ -44,7 +50,12 @@ func ParseRemoteURL(rawURL string) (*RemoteInfo, error) {
 	if len(ownerRepo) != 2 || ownerRepo[0] == "" || ownerRepo[1] == "" {
 		return nil, fmt.Errorf("cannot parse owner/repo from URL: %s", rawURL)
 	}
-	return &RemoteInfo{Host: u.Host, Owner: ownerRepo[0], Repo: ownerRepo[1]}, nil
+	return &RemoteInfo{
+		Host:    u.Host,
+		BaseURL: u.Scheme + "://" + u.Host,
+		Owner:   ownerRepo[0],
+		Repo:    ownerRepo[1],
+	}, nil
 }
 
 func (r *RemoteInfo) IsGitHub() bool {

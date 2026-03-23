@@ -43,6 +43,5 @@ func detectProvider(remote string) (provider.Host, error) {
 		return nil, fmt.Errorf("no API token for %s (set FORGEJO_TOKEN)", info.Host)
 	}
 
-	instanceURL := "https://" + info.Host
-	return provider.NewForgejo(instanceURL, token, info.Owner, info.Repo)
+	return provider.NewForgejo(info.BaseURL, token, info.Owner, info.Repo)
 }
