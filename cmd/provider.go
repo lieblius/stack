@@ -38,37 +38,11 @@ func detectProvider(remote string) (provider.Host, error) {
 	}
 
 	// Non-GitHub remote: try Forgejo
-	token := forgejoToken(info.Host)
+	token := os.Getenv("FORGEJO_TOKEN")
 	if token == "" {
-		return nil, fmt.Errorf("no API token for %s (set FORGEJO_TOKEN or ST_TOKEN_%s)", info.Host, sanitizeEnvKey(info.Host))
+		return nil, fmt.Errorf("no API token for %s (set FORGEJO_TOKEN)", info.Host)
 	}
 
 	instanceURL := "https://" + info.Host
 	return provider.NewForgejo(instanceURL, token, info.Owner, info.Repo)
-}
-
-// forgejoToken returns an API token for the given host.
-// Checks host-specific env var first, then generic FORGEJO_TOKEN.
-func forgejoToken(host string) string {
-	if t := os.Getenv("ST_TOKEN_" + sanitizeEnvKey(host)); t != "" {
-		return t
-	}
-	return os.Getenv("FORGEJO_TOKEN")
-}
-
-// sanitizeEnvKey converts a hostname to a valid env var suffix.
-// e.g. "codeberg.org" -> "CODEBERG_ORG"
-func sanitizeEnvKey(s string) string {
-	var out []byte
-	for _, c := range []byte(s) {
-		switch {
-		case c >= 'a' && c <= 'z':
-			out = append(out, c-32) // uppercase
-		case c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
-			out = append(out, c)
-		default:
-			out = append(out, '_')
-		}
-	}
-	return string(out)
 }
