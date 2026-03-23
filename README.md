@@ -9,13 +9,19 @@ Squash merge rewrites commit history. When you merge a parent PR with squash, ev
 ## Install
 
 ```bash
+curl -sSfL https://raw.githubusercontent.com/lieblius/stack/main/install.sh | sh
+```
+
+Or with Go:
+
+```bash
 go install github.com/liebl/stack@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/liebl/stack.git
+git clone https://github.com/lieblius/stack.git
 cd stack
 go build -o st .
 ```
