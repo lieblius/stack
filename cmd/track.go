@@ -82,12 +82,11 @@ func runTrack(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("computing merge-base for %s and %s: %w", e.branch, parent, err)
 			}
 
-			// Warn if merge-base doesn't match parent tip (parent may have been rebased)
+			// Warn if merge-base doesn't match parent tip (parent has new commits)
 			parentSHA, _ := git.SHA(parent)
 			if parentSHA != "" && base != parentSHA {
-				fmt.Printf("  WARNING: merge-base(%s, %s) = %s != parent tip %s\n",
-					e.branch, parent, base[:7], parentSHA[:7])
-				fmt.Printf("           Parent may have been rebased. Consider: st track ... %s:<fork-point-sha>\n", e.branch)
+				fmt.Printf("  note: %s is behind %s (run 'st rebase' to update)\n",
+					e.branch, parent)
 			}
 		}
 
