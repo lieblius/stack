@@ -43,6 +43,7 @@ func syncPreamble(remote, trunk string, dryRun bool) (origBranch string, swState
 	origBranch, _ = git.CurrentBranch()
 
 	if !dryRun {
+		git.RecoverSkipWorktree()
 		swState, err = git.SaveSkipWorktree()
 		if err != nil {
 			return "", nil, fmt.Errorf("saving skip-worktree state: %w", err)

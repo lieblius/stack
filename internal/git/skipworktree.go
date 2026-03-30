@@ -1,6 +1,7 @@
 package git
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,69 @@ type SkipWorktreeState struct {
 	tmpDir   string
 	repoDir  string
 	restored bool
+}
+
+type persistedSkipWorktree struct {
+	Files   []string `json:"files"`
+	TmpDir  string   `json:"tmp_dir"`
+	RepoDir string   `json:"repo_dir"`
+}
+
+func skipWorktreeFilePath() (string, error) {
+	gitDir, err := Run("rev-parse", "--git-dir")
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(gitDir, "st-skip-worktree.json"), nil
+}
+
+func (s *SkipWorktreeState) persist() error {
+	path, err := skipWorktreeFilePath()
+	if err != nil {
+		return err
+	}
+	data, err := json.Marshal(persistedSkipWorktree{
+		Files:   s.files,
+		TmpDir:  s.tmpDir,
+		RepoDir: s.repoDir,
+	})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
+func clearPersistedSkipWorktree() {
+	if path, err := skipWorktreeFilePath(); err == nil {
+		os.Remove(path)
+	}
+}
+
+// RecoverSkipWorktree checks for persisted skip-worktree state from a
+// previous interrupted run and restores it. Should be called before
+// SaveSkipWorktree.
+func RecoverSkipWorktree() {
+	path, err := skipWorktreeFilePath()
+	if err != nil {
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var p persistedSkipWorktree
+	if err := json.Unmarshal(data, &p); err != nil {
+		os.Remove(path)
+		return
+	}
+
+	state := &SkipWorktreeState{
+		files:   p.Files,
+		tmpDir:  p.TmpDir,
+		repoDir: p.RepoDir,
+	}
+	fmt.Printf("Recovering %d skip-worktree files from previous run\n", len(p.Files))
+	state.Restore()
 }
 
 // SaveSkipWorktree finds all skip-worktree files, backs them up, clears
@@ -83,6 +147,11 @@ func SaveSkipWorktree() (*SkipWorktreeState, error) {
 		}
 	}
 
+	if err := state.persist(); err != nil {
+		state.Restore()
+		return nil, fmt.Errorf("persisting skip-worktree state: %w", err)
+	}
+
 	return state, nil
 }
 
@@ -112,4 +181,5 @@ func (s *SkipWorktreeState) Restore() {
 	}
 
 	os.RemoveAll(s.tmpDir)
+	clearPersistedSkipWorktree()
 }
