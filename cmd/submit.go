@@ -12,10 +12,11 @@ import (
 
 var submitCmd = &cobra.Command{
 	Use:   "submit",
-	Short: "Push all branches and create/update PRs",
-	Long: `Push all tracked branches and ensure each has a PR with the correct
-base branch. Creates new PRs where needed, updates base branches where wrong.
-Updates stack navigation in each PR body.`,
+	Short: "Push current stack and create/update PRs",
+	Long: `Push branches in the current stack and ensure each has a PR with the
+correct base branch. Creates new PRs where needed, updates base branches where
+wrong. Updates stack navigation in each PR body. Only operates on branches in
+the same stack as the current branch (ancestors and descendants).`,
 	RunE: runSubmit,
 }
 
@@ -47,12 +48,17 @@ func runSubmit(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  pruned stale branch: %s\n", name)
 	}
 
-	all, err := meta.AllTracked()
+	current, err := git.CurrentBranch()
+	if err != nil {
+		return err
+	}
+
+	all, err := meta.StackFromBranch(current)
 	if err != nil {
 		return err
 	}
 	if len(all) == 0 {
-		return fmt.Errorf("no tracked branches")
+		return fmt.Errorf("no tracked branches in current stack")
 	}
 
 	var entries []prEntry
@@ -64,11 +70,17 @@ func runSubmit(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		// Push
-		fmt.Printf("  %s: pushing...\n", m.Name)
-		if !submitDryRun {
-			if err := git.ForcePush(submitRemote, m.Name); err != nil {
-				return fmt.Errorf("pushing %s: %w", m.Name, err)
+		// Check if push is needed by comparing local and remote SHAs
+		localSHA, _ := git.SHA("refs/heads/" + m.Name)
+		remoteSHA, _ := git.SHA("refs/remotes/" + submitRemote + "/" + m.Name)
+		needsPush := localSHA != remoteSHA
+
+		if needsPush {
+			fmt.Printf("  %s: pushing...\n", m.Name)
+			if !submitDryRun {
+				if err := git.ForcePush(submitRemote, m.Name); err != nil {
+					return fmt.Errorf("pushing %s: %w", m.Name, err)
+				}
 			}
 		}
 
