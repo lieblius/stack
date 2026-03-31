@@ -167,7 +167,7 @@ func mergeOne() (bool, error) {
 		}
 	}
 
-	origBranch, _ := git.CurrentBranch()
+	origBranch := current
 
 	var swState *git.SkipWorktreeState
 	if !mergeDryRun {
