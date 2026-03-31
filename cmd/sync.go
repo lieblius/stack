@@ -46,12 +46,17 @@ func runSync(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  pruned stale branch: %s\n", name)
 	}
 
-	all, err := meta.AllTracked()
+	current, err := git.CurrentBranch()
+	if err != nil {
+		return err
+	}
+
+	all, err := meta.StackFromBranch(current)
 	if err != nil {
 		return err
 	}
 	if len(all) == 0 {
-		return fmt.Errorf("no tracked branches")
+		return fmt.Errorf("no tracked branches in current stack")
 	}
 
 	origBranch, swState, err := syncPreamble(syncRemote, syncTrunk, syncDryRun)

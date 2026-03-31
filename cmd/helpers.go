@@ -174,9 +174,11 @@ func recoverFromContinue() error {
 		fmt.Printf("Recovering: %s was successfully rebased onto %s\n", cs.Branch, cs.Parent)
 		fmt.Printf("  pushing %s...\n", cs.Branch)
 		if err := git.ForcePush("origin", cs.Branch); err != nil {
+			meta.ClearContinueState()
 			return fmt.Errorf("pushing recovered branch %s: %w", cs.Branch, err)
 		}
 		if err := meta.Set(cs.Branch, cs.Parent, cs.ParentSHA); err != nil {
+			meta.ClearContinueState()
 			return err
 		}
 	} else {

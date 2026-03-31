@@ -61,8 +61,13 @@ func runMerge(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  pruned stale branch: %s\n", name)
 	}
 
+	current, err := git.CurrentBranch()
+	if err != nil {
+		return err
+	}
+
 	if mergeAll {
-		all, err := meta.AllTracked()
+		all, err := meta.StackFromBranch(current)
 		if err != nil {
 			return err
 		}
@@ -115,9 +120,13 @@ func runMerge(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// mergeOne finds and merges the bottom open PR. Returns false if none found.
+// mergeOne finds and merges the bottom open PR in the current stack. Returns false if none found.
 func mergeOne() (bool, error) {
-	all, err := meta.AllTracked()
+	current, err := git.CurrentBranch()
+	if err != nil {
+		return false, err
+	}
+	all, err := meta.StackFromBranch(current)
 	if err != nil {
 		return false, err
 	}
@@ -236,6 +245,8 @@ func mergeOne() (bool, error) {
 			alive = append(alive, m)
 		}
 	} else {
+		// After merge+pull, we're on trunk; reload all tracked since
+		// StackFromBranch won't walk from trunk into stack branches
 		all, err = meta.AllTracked()
 		if err != nil {
 			fmt.Printf("Warning: could not reload tracked branches: %v\n", err)
