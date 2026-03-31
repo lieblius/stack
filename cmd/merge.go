@@ -188,6 +188,12 @@ func mergeOne() (bool, error) {
 		restoreCheckout(origBranch, mergeDryRun)
 	}()
 
+	// Remember which branches are in this stack (before we checkout trunk)
+	stackSet := make(map[string]bool)
+	for _, m := range all {
+		stackSet[m.Name] = true
+	}
+
 	// Repoint children FIRST (key invariant: never delete a branch that is the base of another open PR)
 	children := meta.Children(target.Name, all)
 	for _, child := range children {
@@ -245,15 +251,15 @@ func mergeOne() (bool, error) {
 			alive = append(alive, m)
 		}
 	} else {
-		// After merge+pull, we're on trunk; reload all tracked since
-		// StackFromBranch won't walk from trunk into stack branches
+		// After merge+pull, we're on trunk; reload all tracked but filter
+		// to only branches that were in the original stack
 		all, err = meta.AllTracked()
 		if err != nil {
 			fmt.Printf("Warning: could not reload tracked branches: %v\n", err)
 			fmt.Println("Run 'st sync' to complete the rebase.")
 		}
 		for _, m := range all {
-			if m.Name != target.Name {
+			if m.Name != target.Name && stackSet[m.Name] {
 				alive = append(alive, m)
 			}
 		}
