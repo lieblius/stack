@@ -16,7 +16,7 @@ All commands must be run from within a git repository that has a GitHub remote.
 
 ### Creating and tracking
 - `st create <name> [-m msg] [-a]` -- create a branch stacked on the current branch, optionally committing staged changes
-- `st track <branches...> [--trunk main] [--force]` -- adopt pre-existing branches into a stack (bottom to top order)
+- `st track <branches...> [--trunk main] [--force]` -- adopt pre-existing branches into a stack (bottom to top order). **Multiple branches in one call creates a linear chain** (trunk -> branch1 -> branch2). To track sibling branches (same parent), run separate `st track` calls.
 
 ### Viewing
 - `st list` -- show the stack tree with PR status and commit counts
@@ -65,6 +65,16 @@ Instead, always use `st rebase` or `st sync`. These handle all common cases:
 - Someone merged a PR on GitHub: `st sync` detects the merge, reparents orphans, and rebases
 
 If you accidentally ran a manual `git rebase`, run `st sync` immediately to let it attempt to reconcile metadata.
+
+### Safe commit surgery on a managed branch
+
+When you need to drop, reorder, or amend commits in ways `st` doesn't support natively:
+
+1. Only operate on the single branch that needs changes. Never touch unrelated branches.
+2. `st untrack <branch>` -- remove just that branch from st metadata
+3. Perform git surgery (interactive rebase, `git rebase --onto`, etc.)
+4. `st track <branch> --trunk <parent> --force` -- re-track with fresh metadata
+5. `st rebase` -- cascade changes to any children if needed
 
 ## Typical workflows
 
