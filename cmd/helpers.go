@@ -86,6 +86,20 @@ func rebaseTrackedBranches(alive []meta.BranchMeta, remote string, dryRun bool, 
 			continue
 		}
 
+		// Detect if branch was manually rebased and is already up-to-date.
+		// If merge-base(parent, branch) == parentSHA, the branch already
+		// sits on the parent's tip and only the stored metadata is stale.
+		actualBase, mbErr := git.MergeBase(m.Parent, m.Name)
+		if mbErr == nil && actualBase == parentSHA {
+			fmt.Printf("  %s: already up-to-date, fixing stale metadata\n", m.Name)
+			if !dryRun {
+				if err := meta.Set(m.Name, m.Parent, parentSHA); err != nil {
+					return result, fmt.Errorf("updating metadata for %s: %w", m.Name, err)
+				}
+			}
+			continue
+		}
+
 		fmt.Printf("\nRebasing %s onto %s (base: %s)...\n", m.Name, m.Parent, m.Base[:7])
 
 		if dryRun {

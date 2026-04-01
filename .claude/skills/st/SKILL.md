@@ -55,6 +55,17 @@ st merge --ci
 st merge --ci --all
 ```
 
+## Critical: never use manual git rebase
+
+Never run `git rebase` directly on branches managed by `st`. The tool tracks fork-point SHAs in metadata, and manual rebases don't update them. This causes stale metadata, which leads to duplicate commits on the next `st sync` or `st rebase`.
+
+Instead, always use `st rebase` or `st sync`. These handle all common cases:
+- Trunk updated: `st rebase` or `st sync` pulls trunk and cascades rebases through the stack
+- Amended a commit on a lower branch: `st rebase` detects the tip changed and cascades the rebase up through all children
+- Someone merged a PR on GitHub: `st sync` detects the merge, reparents orphans, and rebases
+
+If you accidentally ran a manual `git rebase`, run `st sync` immediately to let it attempt to reconcile metadata.
+
 ## Typical workflows
 
 ### Start a new stack
