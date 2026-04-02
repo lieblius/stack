@@ -18,18 +18,18 @@ stack, force push, and update PR base branches on GitHub.`,
 }
 
 var (
-	syncTrunk  string
 	syncRemote string
 	syncDryRun bool
 )
 
 func init() {
-	syncCmd.Flags().StringVar(&syncTrunk, "trunk", "main", "trunk branch name")
 	syncCmd.Flags().StringVar(&syncRemote, "remote", "origin", "remote name")
 	syncCmd.Flags().BoolVar(&syncDryRun, "dry-run", false, "show what would happen without doing it")
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
+	trunk := meta.Trunk()
+
 	if err := requireProvider(); err != nil {
 		return err
 	}
@@ -50,6 +50,9 @@ func runSync(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := requireNotTrunk(current, trunk); err != nil {
+		return err
+	}
 
 	all, err := meta.StackFromBranch(current)
 	if err != nil {
@@ -59,7 +62,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no tracked branches in current stack")
 	}
 
-	origBranch, swState, err := syncPreamble(syncRemote, syncTrunk, syncDryRun)
+	origBranch, swState, err := syncPreamble(syncRemote, trunk, syncDryRun)
 	if err != nil {
 		return err
 	}
@@ -100,7 +103,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 			for mergedSet[newParent] {
 				pm, _ := meta.Get(newParent)
 				if pm == nil {
-					newParent = syncTrunk
+					newParent = trunk
 					break
 				}
 				newParent = pm.Parent

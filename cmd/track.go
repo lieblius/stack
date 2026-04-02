@@ -13,7 +13,7 @@ var trackCmd = &cobra.Command{
 	Use:   "track [branch1] [branch2] [branch3...]",
 	Short: "Track existing branches as a stack",
 	Long: `Adopt existing branches into a tracked stack. Branches are listed
-bottom to top. The first branch's parent is the trunk (default: main).
+bottom to top. The first branch's parent is the trunk (from git config, default: main).
 
 To specify an explicit fork-point (for partially-rebased stacks):
   st track feature-1 feature-2:abc1234 feature-3
@@ -25,12 +25,10 @@ Example:
 }
 
 var (
-	trackTrunk string
 	trackForce bool
 )
 
 func init() {
-	trackCmd.Flags().StringVar(&trackTrunk, "trunk", "main", "trunk branch name")
 	trackCmd.Flags().BoolVar(&trackForce, "force", false, "overwrite existing tracking metadata")
 }
 
@@ -65,7 +63,7 @@ func runTrack(cmd *cobra.Command, args []string) error {
 		entries = append(entries, entry{branch, base})
 	}
 
-	parent := trackTrunk
+	parent := meta.Trunk()
 	for _, e := range entries {
 		var base string
 		if e.explicitBase != "" {

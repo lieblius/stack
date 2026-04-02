@@ -18,7 +18,6 @@ to trunk, rebase the remaining stack, and clean up the merged branch.`,
 }
 
 var (
-	mergeTrunk    string
 	mergeRemote   string
 	mergeDryRun   bool
 	mergeYes      bool
@@ -28,7 +27,6 @@ var (
 )
 
 func init() {
-	mergeCmd.Flags().StringVar(&mergeTrunk, "trunk", "main", "trunk branch name")
 	mergeCmd.Flags().StringVar(&mergeRemote, "remote", "origin", "remote name")
 	mergeCmd.Flags().BoolVar(&mergeDryRun, "dry-run", false, "show what would happen without doing it")
 	mergeCmd.Flags().BoolVar(&mergeYes, "yes", false, "skip confirmation prompt")
@@ -38,6 +36,8 @@ func init() {
 }
 
 func runMerge(cmd *cobra.Command, args []string) error {
+	trunk := meta.Trunk()
+
 	strategy := provider.MergeStrategy(mergeStrategy)
 	switch strategy {
 	case provider.MergeSquash, provider.MergeMerge, provider.MergeRebase:
@@ -65,6 +65,9 @@ func runMerge(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := requireNotTrunk(current, trunk); err != nil {
+		return err
+	}
 
 	if mergeAll {
 		all, err := meta.StackFromBranch(current)
@@ -85,7 +88,7 @@ func runMerge(cmd *cobra.Command, args []string) error {
 		}
 
 		if !mergeYes && !mergeCI && !mergeDryRun {
-			fmt.Printf("Will merge %d PRs into %s (bottom to top):\n", len(targets), mergeTrunk)
+			fmt.Printf("Will merge %d PRs into %s (bottom to top):\n", len(targets), trunk)
 			for _, t := range targets {
 				fmt.Println(t)
 			}
@@ -96,7 +99,7 @@ func runMerge(cmd *cobra.Command, args []string) error {
 
 		count := 0
 		for {
-			merged, err := mergeOne()
+			merged, err := mergeOne(trunk)
 			if err != nil {
 				return err
 			}
@@ -110,18 +113,18 @@ func runMerge(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	merged, err := mergeOne()
+	merged, err := mergeOne(trunk)
 	if err != nil {
 		return err
 	}
 	if !merged {
-		return fmt.Errorf("no open PR found at the bottom of the stack (parent must be %s)", mergeTrunk)
+		return fmt.Errorf("no open PR found at the bottom of the stack (parent must be %s)", trunk)
 	}
 	return nil
 }
 
 // mergeOne finds and merges the bottom open PR in the current stack. Returns false if none found.
-func mergeOne() (bool, error) {
+func mergeOne(trunk string) (bool, error) {
 	current, err := git.CurrentBranch()
 	if err != nil {
 		return false, err
@@ -138,7 +141,7 @@ func mergeOne() (bool, error) {
 	var target meta.BranchMeta
 	var targetPR *provider.PullRequest
 	for _, m := range all {
-		if m.Parent != mergeTrunk {
+		if m.Parent != trunk {
 			continue
 		}
 		pr, _ := host.PRForBranch(m.Name)
@@ -155,7 +158,7 @@ func mergeOne() (bool, error) {
 
 	// Confirm (skip if --all since gh prompts interactively for each merge)
 	if !mergeYes && !mergeAll && !mergeCI && !mergeDryRun {
-		if err := confirmAction(fmt.Sprintf("Merge PR #%d (%s) into %s?", targetPR.Number, target.Name, mergeTrunk)); err != nil {
+		if err := confirmAction(fmt.Sprintf("Merge PR #%d (%s) into %s?", targetPR.Number, target.Name, trunk)); err != nil {
 			return false, err
 		}
 	}
@@ -199,16 +202,16 @@ func mergeOne() (bool, error) {
 	for _, child := range children {
 		childPR, _ := host.PRForBranch(child)
 		if childPR != nil && childPR.State == provider.PROpen {
-			fmt.Printf("  repointing PR #%d (%s) base: %s -> %s\n", childPR.Number, child, target.Name, mergeTrunk)
+			fmt.Printf("  repointing PR #%d (%s) base: %s -> %s\n", childPR.Number, child, target.Name, trunk)
 			if !mergeDryRun {
-				if err := host.EditPRBase(childPR.Number, mergeTrunk); err != nil {
+				if err := host.EditPRBase(childPR.Number, trunk); err != nil {
 					return false, fmt.Errorf("repointing PR for %s: %w", child, err)
 				}
 			}
 		}
-		fmt.Printf("  reparenting %s: %s -> %s\n", child, target.Name, mergeTrunk)
+		fmt.Printf("  reparenting %s: %s -> %s\n", child, target.Name, trunk)
 		if !mergeDryRun {
-			if err := meta.SetParent(child, mergeTrunk); err != nil {
+			if err := meta.SetParent(child, trunk); err != nil {
 				return false, fmt.Errorf("reparenting %s: %w", child, err)
 			}
 		}
@@ -223,13 +226,13 @@ func mergeOne() (bool, error) {
 	}
 
 	// Pull trunk
-	fmt.Printf("Pulling %s/%s...\n", mergeRemote, mergeTrunk)
+	fmt.Printf("Pulling %s/%s...\n", mergeRemote, trunk)
 	if !mergeDryRun {
-		if err := git.Checkout(mergeTrunk); err != nil {
-			return false, fmt.Errorf("checking out %s: %w", mergeTrunk, err)
+		if err := git.Checkout(trunk); err != nil {
+			return false, fmt.Errorf("checking out %s: %w", trunk, err)
 		}
-		if err := git.Pull(mergeRemote, mergeTrunk); err != nil {
-			return false, fmt.Errorf("pulling %s: %w", mergeTrunk, err)
+		if err := git.Pull(mergeRemote, trunk); err != nil {
+			return false, fmt.Errorf("pulling %s: %w", trunk, err)
 		}
 	}
 
@@ -246,7 +249,7 @@ func mergeOne() (bool, error) {
 				continue
 			}
 			if childSet[m.Name] {
-				m.Parent = mergeTrunk
+				m.Parent = trunk
 			}
 			alive = append(alive, m)
 		}
@@ -292,6 +295,6 @@ func mergeOne() (bool, error) {
 		}
 	}
 
-	fmt.Printf("\nMerge complete. PR #%d (%s) merged into %s.\n", targetPR.Number, target.Name, mergeTrunk)
+	fmt.Printf("\nMerge complete. PR #%d (%s) merged into %s.\n", targetPR.Number, target.Name, trunk)
 	return true, nil
 }

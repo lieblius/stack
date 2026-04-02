@@ -17,18 +17,18 @@ Unlike sync, this does not detect or clean up merged branches.`,
 }
 
 var (
-	rebaseTrunk  string
 	rebaseRemote string
 	rebaseDryRun bool
 )
 
 func init() {
-	rebaseCmd.Flags().StringVar(&rebaseTrunk, "trunk", "main", "trunk branch name")
 	rebaseCmd.Flags().StringVar(&rebaseRemote, "remote", "origin", "remote name")
 	rebaseCmd.Flags().BoolVar(&rebaseDryRun, "dry-run", false, "show what would happen without doing it")
 }
 
 func runRebase(cmd *cobra.Command, args []string) error {
+	trunk := meta.Trunk()
+
 	if err := requireProvider(); err != nil {
 		fmt.Printf("warning: %v (PR bases will not be updated)\n", err)
 	}
@@ -49,6 +49,9 @@ func runRebase(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := requireNotTrunk(current, trunk); err != nil {
+		return err
+	}
 
 	all, err := meta.StackFromBranch(current)
 	if err != nil {
@@ -58,7 +61,7 @@ func runRebase(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no tracked branches in current stack")
 	}
 
-	origBranch, swState, err := syncPreamble(rebaseRemote, rebaseTrunk, rebaseDryRun)
+	origBranch, swState, err := syncPreamble(rebaseRemote, trunk, rebaseDryRun)
 	if err != nil {
 		return err
 	}

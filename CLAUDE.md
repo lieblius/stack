@@ -28,7 +28,8 @@ go vet ./...
 
 # Testing
 
-No automated test suite yet. Test manually on a repo with stacked branches.
+No automated test suite yet. Verify changes with `go build` and `go vet` only.
+Do NOT run `st` commands against any repo with a live remote. These commands merge PRs, force-push, and delete branches on real hosting platforms. If manual testing is absolutely needed, use a throwaway repo in /tmp with no remote.
 
 # Common gotchas
 

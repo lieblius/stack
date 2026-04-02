@@ -10,6 +10,13 @@ import (
 	"github.com/liebl/stack/internal/provider"
 )
 
+func requireNotTrunk(current, trunk string) error {
+	if current == trunk {
+		return fmt.Errorf("cannot run this command from %s -- check out a branch in the stack first", trunk)
+	}
+	return nil
+}
+
 type rebaseConflictError struct {
 	Branch string
 }

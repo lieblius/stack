@@ -8,6 +8,30 @@ import (
 )
 
 const configPrefix = "stack.branch."
+const trunkKey = "stack.trunk"
+
+// Trunk returns the configured trunk branch name. If not set, auto-detects
+// from existing branches (main, then master) and persists the result.
+func Trunk() string {
+	name, err := git.Run("config", "--local", trunkKey)
+	if err == nil && name != "" {
+		return name
+	}
+	// Auto-detect: prefer "main", fall back to "master", default to "main"
+	detected := "main"
+	if !git.BranchExists("main") && git.BranchExists("master") {
+		detected = "master"
+	}
+	// Persist so we only detect once
+	SetTrunk(detected)
+	return detected
+}
+
+// SetTrunk persists the trunk branch name in git config.
+func SetTrunk(name string) error {
+	_, err := git.Run("config", "--local", trunkKey, name)
+	return err
+}
 
 type BranchMeta struct {
 	Name   string

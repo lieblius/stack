@@ -52,6 +52,9 @@ func runSubmit(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := requireNotTrunk(current, meta.Trunk()); err != nil {
+		return err
+	}
 
 	all, err := meta.StackFromBranch(current)
 	if err != nil {
