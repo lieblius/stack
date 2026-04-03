@@ -55,7 +55,7 @@ func RebaseOnto(onto, upstream, branch string) error {
 }
 
 func ForcePush(remote, branch string) error {
-	_, err := Run("push", "--force-with-lease", remote, branch)
+	_, err := Run("push", "--force-with-lease", "-u", remote, branch)
 	return err
 }
 
