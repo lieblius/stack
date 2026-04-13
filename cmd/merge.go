@@ -75,9 +75,12 @@ func runMerge(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		// List all open PRs in topo order for upfront confirmation
+		// Capture the original stack so subsequent iterations don't wander
+		// into unrelated stacks once `current` lands on trunk after cleanup.
+		allowed := make(map[string]bool, len(all))
 		var targets []string
 		for _, m := range all {
+			allowed[m.Name] = true
 			pr, _ := host.PRForBranch(m.Name)
 			if pr != nil && pr.State == provider.PROpen {
 				targets = append(targets, fmt.Sprintf("  PR #%d (%s)", pr.Number, m.Name))
@@ -99,7 +102,7 @@ func runMerge(cmd *cobra.Command, args []string) error {
 
 		count := 0
 		for {
-			merged, err := mergeOne(trunk)
+			merged, err := mergeOne(trunk, allowed)
 			if err != nil {
 				return err
 			}
@@ -113,7 +116,7 @@ func runMerge(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	merged, err := mergeOne(trunk)
+	merged, err := mergeOne(trunk, nil)
 	if err != nil {
 		return err
 	}
@@ -124,10 +127,18 @@ func runMerge(cmd *cobra.Command, args []string) error {
 }
 
 // mergeOne finds and merges the bottom open PR in the current stack. Returns false if none found.
-func mergeOne(trunk string) (bool, error) {
+// If allowed is non-nil, only branches in that set are considered (used by --all to keep
+// iteration scoped to the originally selected stack even after the original branch is deleted).
+func mergeOne(trunk string, allowed map[string]bool) (bool, error) {
 	current, err := git.CurrentBranch()
 	if err != nil {
 		return false, err
+	}
+	// After a successful merge the original branch may be deleted, leaving us on trunk.
+	// In that case StackFromBranch(trunk) walks every child of trunk across every stack,
+	// which would silently merge unrelated PRs. Bail out instead.
+	if current == trunk {
+		return false, nil
 	}
 	all, err := meta.StackFromBranch(current)
 	if err != nil {
@@ -142,6 +153,9 @@ func mergeOne(trunk string) (bool, error) {
 	var targetPR *provider.PullRequest
 	for _, m := range all {
 		if m.Parent != trunk {
+			continue
+		}
+		if allowed != nil && !allowed[m.Name] {
 			continue
 		}
 		pr, _ := host.PRForBranch(m.Name)
